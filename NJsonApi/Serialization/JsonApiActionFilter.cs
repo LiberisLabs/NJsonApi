@@ -59,20 +59,24 @@ namespace NJsonApi.Serialization
                     var nJsonApiBaseException = exception as NJsonApiBaseException;
                     if (nJsonApiBaseException != null)
                     {
-                        executedContext.Response = new HttpResponseMessage(nJsonApiBaseException.GetHttpStatusCode());
-                        var transformed = jsonApiTransformer.Transform(nJsonApiBaseException, context);
-                        var jsonApiFormatter = new JsonApiFormatter(configuration, jsonApiTransformer.Serializer);
-                        executedContext.Response.Content = new ObjectContent(transformed.GetType(), transformed, jsonApiFormatter);
+                        return CreateErrorResponse(nJsonApiBaseException, nJsonApiBaseException.GetHttpStatusCode(), context);
                     }
-                    else
-                    {
-                        executedContext.Response = executedContext.Request.CreateErrorResponse(HttpStatusCode.InternalServerError, new NJsonApiBaseException("Internal Server Error"));
-                        executedContext.Response.Content = new HttpMessageContent(new HttpResponseMessage(HttpStatusCode.InternalServerError));
-                    }
+
+                    return CreateErrorResponse(new Exception("Unexpected server error"), HttpStatusCode.InternalServerError, context);
                 }
             }
 
             return executedContext.Response;
+        }
+
+        private HttpResponseMessage CreateErrorResponse(Exception exception, HttpStatusCode statusCode, Context context)
+        {
+            var httpResponseMessage = new HttpResponseMessage(statusCode);
+            var transformed = jsonApiTransformer.Transform(exception, context);
+            var jsonApiFormatter = new JsonApiFormatter(configuration, jsonApiTransformer.Serializer);
+            httpResponseMessage.Content = new ObjectContent(transformed.GetType(), transformed, jsonApiFormatter);
+
+            return httpResponseMessage;
         }
 
         public virtual void InternalActionExecuting(HttpActionContext actionContext, CancellationToken cancellationToken)
